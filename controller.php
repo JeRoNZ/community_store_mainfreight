@@ -34,6 +34,17 @@ class Controller extends Package {
 		'/dashboard/store/settings/mainfreight' => array('name' => 'Mainfreight', 'nav' => true),
 	);
 
+	public function on_start () {
+		$this->registerAutoload();
+	}
+
+	private function registerAutoload () {
+		$file = $this->getPackagePath() . '/vendor/autoload.php';
+		if (file_exists($file)) {
+			require_once $file;
+		}
+	}
+
 	public function install () {
 		$pkg = parent::install();
 		$this->shippingMethods($pkg);

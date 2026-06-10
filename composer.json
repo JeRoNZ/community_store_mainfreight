@@ -1,0 +1,14 @@
+{
+  "name": "kova/community-store-mainfreight",
+  "description": "Mainfreight shipping method for Community Store",
+  "type": "concretecms-package",
+  "require": {
+    "dvdoug/boxpacker": "^4.0"
+  },
+  "replace": {
+    "psr/log": "*"
+  },
+  "config": {
+    "vendor-dir": "vendor"
+  }
+}
