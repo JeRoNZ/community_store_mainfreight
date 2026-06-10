@@ -8,7 +8,10 @@ use Concrete\Core\Logging\LoggerAwareInterface;
 use Concrete\Core\Logging\LoggerAwareTrait;
 use Concrete\Core\Logging\LoggerFactory;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Group\Group;
+use Concrete\Package\CommunityStore\Src\CommunityStore\Order\Order;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Product\ProductGroup;
+use Concrete\Package\CommunityStore\Src\CommunityStore\Tax\Tax;
+use Concrete\Package\CommunityStore\Src\CommunityStore\Tax\TaxRate;
 use Doctrine\ORM\Mapping as ORM;
 use Concrete\Core\Support\Facade\Application;
 use Concrete\Core\Support\Facade\DatabaseORM as dbORM;
@@ -104,7 +107,8 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 	public function __construct () {
 		// DEBUG make this pick up from a config variable
-		$this->disableCaching = true;
+		// TODO
+		$this->disableCaching = false;
 	}
 
 
@@ -289,22 +293,7 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			return [];
 		}
 
-		/*
-		 * $boxes
-		 * Array
-(
-    [0] => Array
-        (
-            [weight] => 10.25
-            [width] => 0.15
-            [height] => 0.13
-            [length] => 1.2
-        )
-
-)
-		 */
-
-		$args['serviceLevel'] = ['code'=>'LCL'];  // TODO pick this up from the configured type
+		$args['serviceLevel'] = ['code' => 'LCL'];  // TODO pick this up from the configured type
 		$args['origin'] = [
 			'freightRequiredDateTime' => '2026-06-30T12:00:00:00', // TODO set this up
 			'freightRequiredDateTimeZone' => 'New Zealand Standard Time', // TODO query summer time
@@ -325,52 +314,97 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			]
 		];
 
-		foreach($boxes as $box) {
+		foreach ($boxes as $box) {
 			$args['freightDetails'][] =
 				[
 					'units' => "1",
 					'packTypeCode' => "PLT", // TODO pick this up from the configured type
-					'height' => number_format($box['height'],2,null,''),
-					'length' => number_format($box['length'],2,null,''),
-					'width' => number_format($box['width'],2,null,''),
-					'weight' => number_format($box['weight'],0,null,''),
+					'height' => number_format($box['height'], 2, null, ''),
+					'length' => number_format($box['length'], 2, null, ''),
+					'width' => number_format($box['width'], 2, null, ''),
+					'weight' => number_format($box['weight'], 0, null, ''),
 //					'volume' => number_format($box['width']*$box['length']*$box['height'],2,null,'')
-				];
+			];
 		}
 
+		$cache = $expensiveCache = null;
+		if (!$this->disableCaching) {
+			$expensiveCache = app('cache/expensive');
+			$cacheName = 'Mainfreight' . md5(json_encode($args));
+			$cache = $expensiveCache->getItem($cacheName);
+		}
+		if ($cache && $cache->isHit()) {
+			$rate = $cache->get();
+			$this->log(Logger::DEBUG, t('Price cache hit %s %s', var_export($args, true), var_export($rate, true)));
+		} else {
+			$API = new Mainfreight();
 
+			$rates = $API->getRates($args);
+			/*
+			 * {
+			  "charges" : [ {
+				"name" : "FreightAmount",
+				"value" : 569.49
+			  }, {
+				"name" : "FuelAmount",
+				"value" : 188.79
+			  }, {
+				"name" : "FuelPercentage",
+				"value" : 33.15
+			  }, {
+				"name" : "OtherFeeAmount",
+				"value" : 0.0
+			  }, {
+				"name" : "TotalExcludingGSTAmount",
+				"value" : 758.28
+			  }, {
+				"name" : "TotalIncludingGSTAmount",
+				"value" : 872.02
+			  } ]
+			}
+			 */
 
+			$this->log(Logger::DEBUG, t('Price cache miss %s %s', var_export($args, true), var_export($rates, true)));
 
-
-
-		$API = new Mainfreight();
-
-		$rates = $API->getRates($args);
-
-		return false;
-
-
-
-		foreach ($boxes as $box) {
-			/** @var ShippingMethodOffer $offer */
-			$offer = $this->getBoxPrice($API, $box, $args);
-			if (!$offer) {
+			if (!$rates) {
 				return [];
 			}
-			if (!isset($finalOffer)) {
-				$finalOffer = new ShippingMethodOffer();
+
+			$rate = json_decode($rates);
+			if (!$rate) {
+				return [];
 			}
-			$finalOffer->setRate($finalOffer->getRate() + $offer->getRate());
-			$finalOffer->setOfferDetails($offer->getOfferDetails());
-			$finalOffer->setOfferLabel($offer->getOfferLabel());
-			$finalOffer->setMethodLabel($offer->getMethodLabel());
+
+			if ($expensiveCache) {
+				$expensiveCache->save($cache->set($rate)->expiresAfter(3600));
+			}
 		}
 
-		if (isset($finalOffer)) {
-			return [$finalOffer];
+		$taxRates = Tax::getTaxRates(true);
+
+		// Do NOT use Tax::getTaxes(), Calculator::getTaxTotals(), Calculator::getTotals() etc, since this results in a recursion,
+		// because it needs to know the shipping amount to calculate tax if the tax rate is set to tax on grandtotal
+
+		$rateKey = 'TotalIncludingGSTAmount';
+		if (count($taxRates) > 0) {
+			// this is a bit of a cludge
+			if ($taxRates[0]->getTaxBasedOn() === 'grandtotal') {
+//				 subtotal = products only
+//				 grandtotal = products+shippping
+				$rateKey = 'TotalExcludingGSTAmount';
+			}
 		}
 
-		return [];
+		$offers = [];
+		foreach ($rate->charges as $charge) {
+			if ($charge->name == $rateKey) {
+				$offer = new ShippingMethodOffer();
+				$offer->setRate($charge->value);
+				$offers[] = $offer;
+			}
+		}
+
+		return $offers;
 	}
 
 
@@ -597,77 +631,5 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			innerDepth: $carton['h'] * 1000 - 5,
 			maxWeight: $carton['k'] * 1000
 		);
-	}
-
-
-	protected function getBoxPrice (Mainfreight $API, $box, $address) {
-		$args = array_merge($box, $address);
-		$this->log(Logger::DEBUG, t('Pricing for %s %s', var_export($box, true), var_export($address, true)));
-		$this->log(Logger::DEBUG, t('Merged %s', var_export($args, true)));
-		/*		ksort($args);
-				if (isset($args['prods'])) {
-					unset($args['prods']);
-				}*/
-
-		$cache = $expensiveCache = null;
-		if (!$this->disableCaching) {
-			$expensiveCache = app('cache/expensive');
-			$cacheName = 'MainfreightRates' . md5(json_encode($args));
-			$cache = $expensiveCache->getItem($cacheName);
-		}
-		if ($cache && $cache->isHit()) {
-			$rates = $cache->get();
-			$this->log(Logger::DEBUG, t('Price cache hit %s %s', var_export($args, true), var_export($rates, true)));
-		} else {
-			$rates = $API->getRates($args);
-			$this->log(Logger::DEBUG, t('Price cache miss %s %s', var_export($args, true), var_export($rates, true)));
-			if ($rates === null) {
-				return [];
-			}
-			if ($expensiveCache) {
-				$expensiveCache->save($cache->set($rates)->expiresAfter(3600));
-			}
-		}
-
-		$rates = json_decode($rates);
-		$success = $rates->success ?? false;
-		if (!$success) {
-			return [];
-		}
-
-		// NZ POst uses Kg and cm
-
-		$services = $rates->services ?? [];
-		foreach ($services as $service) {
-			// Ignore Pickup and Label - it's far too cheap.
-			if ($service->description == 'Pickup And Label') {
-				continue;
-			}
-			if (!property_exists($service, 'price_including_surcharge_and_gst')) {
-				continue;
-			}
-			if ($service->price_including_surcharge_and_gst == 0) {
-				continue;
-			}
-
-			// Find the Cheapest option
-			/** @var $offer ShippingMethodOffer */
-			if (isset($offer)) {
-				if ($offer->getRate() < $service->price_including_surcharge_and_gst) {
-					continue;
-				}
-			} else {
-				$offer = new ShippingMethodOffer();
-			}
-			$offer->setOfferLabel(' ' . $service->description);
-			// It makes me weep sometimes.
-			$offer->setOfferDetails(str_replace("area's", 'areas', $service->service_standard));
-			$offer->setRate($service->price_including_surcharge_and_gst);
-		}
-		if (isset ($offer)) {
-			return $offer;
-		}
-
-		return null;
 	}
 }

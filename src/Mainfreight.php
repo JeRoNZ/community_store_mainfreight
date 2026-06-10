@@ -35,51 +35,6 @@ class Mainfreight implements LoggerAwareInterface {
 	public function getRates ($payload) {
 		$payload['account'] = ['code' => $this->accountID];
 
-		$pooload = [
-			// TODO set the address up from the plugin data
-			'account' => ['code' => $this->accountID],
-			'serviceLevel' => ['code' => 'LCL'],
-			'origin' => [
-				'freightRequiredDateTime' => '2026-06-30T12:00:00:00',
-				'freightRequiredDateTimeZone' => 'New Zealand Standard Time',
-				'address' => [
-					'suburb' => 'Grey Lynn',
-					'postCode' => '1011',
-					'city' => 'Auckland',
-					'countryCode' => 'NZ',
-				]
-			],
-			'destination' => [
-				'address' => [
-					'suburb' => 'Mount Cook',
-					'postCode' => '6011',
-					'city' => 'Auckland',
-					'countryCode' => 'NZ',
-				]
-			],
-			'freightDetails' =>
-				[
-					[
-						'units' => "1",
-						'packTypeCode' => "PLT",
-						'height' => "1.23",
-						'length' => "1.45",
-						'width' => "1.6",
-						'weight' => "120",
-//						'volume' => "2.86",
-					],
-//					[
-//						'units' => "2",
-//						'packTypeCode' => "Bag",
-//						'height' => "2.23",
-//						'length' => "1.45",
-//						'width' => "1.6",
-//						'weight' => "60",
-//						'volume' => "10.35",
-//					],
-				]
-		];
-//
 		$guzza = new Client(['timeout' => 10, 'connect_timeout' => 10]);
 
 		$url = $this->APIURL . 'customer/rate';
@@ -133,9 +88,6 @@ class Mainfreight implements LoggerAwareInterface {
 		} catch (\Exception $e) {
 			$this->logger->emergency('General Exception: ' . $e->getMessage());
 		}
-
-// TODO
-
 
 		return null;
 	}
