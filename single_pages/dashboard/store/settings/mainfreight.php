@@ -23,8 +23,8 @@ $editor = Core::make('editor');
 ?>
 
 <div class="ccm-dashboard-header-buttons">
-    <a href="<?= Url::to('/dashboard/store/settings'); ?>" class="btn btn-primary"><i
-                class="fa fa-file-pdf-o fa-flip-horizontal"></i> <?= t('Settings'); ?></a>
+    <a href="<?= Url::to('/dashboard/store/settings/shipping'); ?>" class="btn btn-primary"><i class="fa fa-truck fa-flip-horizontal"></i> <?= t("Shipping Methods"); ?></a>
+    <a href="<?= Url::to('/dashboard/store/settings/settings'); ?>" class="btn btn-primary"><?= t('Settings'); ?></a>
 </div>
 
 <div class="ccm-pane-body">

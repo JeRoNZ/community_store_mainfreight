@@ -31,6 +31,7 @@ use Concrete\Core\Support\Facade\Config;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\RequestException;
 use Monolog\Logger;
+use CommunityStoreMainfreight\ConditionalLogger;
 use CommunityStoreMainfreight\Mainfreight;
 use CommunityStoreMainfreight\MainfreightBox;
 use CommunityStoreMainfreight\MainfreightItem;
@@ -258,6 +259,10 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 		return $this->logger;
 	}
 
+	private function getConditionalLogger (): ConditionalLogger {
+		return new ConditionalLogger($this->getLogger(), (bool) $this->debugLogging);
+	}
+
 	public function getOffer ($key) {
 		$this->getOffers()[$key];
 	}
@@ -338,6 +343,7 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			$this->log(Logger::DEBUG, t('Price cache hit %s %s', var_export($args, true), var_export($rate, true)));
 		} else {
 			$API = new Mainfreight();
+			$API->setLogger($this->getConditionalLogger());
 
 			if ($this->debugLogging) {
 				$this->log(Logger::DEBUG, var_export(json_encode($args),true));
@@ -476,7 +482,7 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 				);
 
 				$volumePacker = new VolumePacker($box, $items);
-				$volumePacker->setLogger($this->getLogger());
+				$volumePacker->setLogger($this->getConditionalLogger());
 				$packedBox = $volumePacker->pack();
 				$packedItems = $packedBox->items;
 				if ($packedItems->getVolume() > 0) {
@@ -492,7 +498,7 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 		}
 
 		$packer = new Packer();
-		$packer->setLogger($this->getLogger());
+		$packer->setLogger($this->getConditionalLogger());
 		foreach ($this->boxes as $carton) {
 			$packer->addBox($this->henry($carton));
 		}

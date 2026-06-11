@@ -7,6 +7,7 @@ use Concrete\Core\Package\PackageService;
 use Concrete\Core\Page\Page;
 use Concrete\Core\Page\Single as SinglePage;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Shipping\Method\ShippingMethodType;
+use Concrete\Package\CommunityStore\Src\CommunityStore\Shipping\Method\ShippingMethodType as StoreShippingMethodType;
 
 class Controller extends Package {
 	protected $pkgHandle = 'community_store_mainfreight';
@@ -43,6 +44,15 @@ class Controller extends Package {
 		if (file_exists($file)) {
 			require_once $file;
 		}
+	}
+
+	public function uninstall () {
+		$pm = StoreShippingMethodType::getByHandle('mainfreight');
+		if ($pm) {
+			$pm->delete();
+		}
+
+		parent::uninstall();
 	}
 
 	public function install () {
