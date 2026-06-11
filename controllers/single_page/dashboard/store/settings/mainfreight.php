@@ -3,49 +3,23 @@ namespace Concrete\Package\CommunityStoreMainfreight\Controller\SinglePage\Dashb
 
 defined('C5_EXECUTE') or die('Access Denied.');
 
-use Concrete\Core\Error\ErrorList\ErrorList;
-use Concrete\Core\Page\Page;
 use Concrete\Core\Support\Facade\Config;
 use Concrete\Core\Page\Controller\DashboardPageController;
-use Concrete\Core\Routing\Redirect;
-use TruckCentreBop\Unleashed;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Concrete\Core\Editor\LinkAbstractor;
-use Concrete\Core\File\File;
-use Concrete\Core\Http\Response;
 
 class Mainfreight extends DashboardPageController {
 
 	public function validate($args)
 	{
-		$e = $this->app->make('helper/validation/error');
-//		$nv = $this->app->make('helper/validation/numbers');
-
-		// 8-4-4-4-12 a-f 0-9
-//		$key = trim($args['APIID']);
-//		if (!preg_match('/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/', $key)) {
-//			$e->add('API ID is not in GUID format');
-//		}
-//		if ($args['APIID']){
-//			if (! preg_match('/^sk_(test|live)_[a-z0-9]{24,255}$/i',$args['unleashedSecretKey'] )){
-//				$e->add('Secret key has an invalid format');
-//			}
-//		}
-//
-//		if ($args['APIKEY']){
-//			if (! preg_match('/^price_[a-z0-9]{24}$/i',$args['unleashedSubProductPriceID'] )){
-//				$e->add('Subscription price ID has an invalid format or length');
-//			}
-//		}
-//
-		return $e;
+		return $this->app->make('helper/validation/error');
 	}
 
 	public function view() {
-		$this->set('APIKey',Config::get('mainfreight.APIKey'));
-		$this->set('accountID',Config::get('mainfreight.accountID'));
+		$this->set('APIKey', Config::get('mainfreight.APIKey'));
+		$this->set('accountID', Config::get('mainfreight.accountID'));
+		$this->set('boxSizes', Config::get('mainfreight.box_sizes') ?: []);
+		$this->set('pickupAddress', Config::get('mainfreight.pickup_address') ?: []);
 	}
-
 
 	public function save()
 	{
@@ -59,8 +33,29 @@ class Mainfreight extends DashboardPageController {
 			if ($errors->has()) {
 				$this->flash('errors', $errors);
 			} else {
-				Config::save('mainfreight.APIKey', trim($args['APIKey']));
-				Config::save('mainfreight.accountID', trim($args['accountID']));
+				Config::save('mainfreight.APIKey', trim($args['APIKey'] ?? ''));
+				Config::save('mainfreight.accountID', trim($args['accountID'] ?? ''));
+
+				$boxSizes = [];
+				if (!empty($args['boxes']) && is_array($args['boxes'])) {
+					foreach ($args['boxes'] as $box) {
+						$l = round((float) ($box['l'] ?? 0), 2);
+						$w = round((float) ($box['w'] ?? 0), 2);
+						$h = round((float) ($box['h'] ?? 0), 2);
+						$k = round((float) ($box['k'] ?? 0), 2);
+						if ($l > 0 && $w > 0 && $h > 0 && $k > 0) {
+							$boxSizes[] = ['l' => $l, 'w' => $w, 'h' => $h, 'k' => $k];
+						}
+					}
+				}
+				Config::save('mainfreight.box_sizes', $boxSizes);
+
+				Config::save('mainfreight.pickup_address', [
+					'street'   => trim($args['street'] ?? ''),
+					'suburb'   => trim($args['suburb'] ?? ''),
+					'city'     => trim($args['city'] ?? ''),
+					'postcode' => trim($args['postcode'] ?? ''),
+				]);
 
 				$this->flash('success', t('Settings Saved'));
 

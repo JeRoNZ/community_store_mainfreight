@@ -78,38 +78,21 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 	protected $disableCaching;
 
-	private $boxes = [
-		[
-			'l' => 1.2,
-			'w' => 0.15,
-			'h' => 0.13,
-			'k' => 20
-		],
-		[
-			'l' => 2.4,
-			'w' => 0.15,
-			'h' => 0.13,
-			'k' => 30
-		],
-
-		[
-			'l' => 1.2,
-			'w' => 0.15,
-			'h' => 0.19,
-			'k' => 20
-		],
-		[
-			'l' => 2.4,
-			'w' => 0.15,
-			'h' => 0.19,
-			'k' => 30
-		]
+	private const DEFAULT_BOXES = [
+		['l' => 1.2, 'w' => 0.15, 'h' => 0.13, 'k' => 20],
+		['l' => 2.4, 'w' => 0.15, 'h' => 0.13, 'k' => 30],
+		['l' => 1.2, 'w' => 0.15, 'h' => 0.19, 'k' => 20],
+		['l' => 2.4, 'w' => 0.15, 'h' => 0.19, 'k' => 30],
+		['l' => 0.35, 'w' => 0.35, 'h' => 0.2,  'k' => 20],
 	];
 
+	private $boxes;
+
 	public function __construct () {
-		// DEBUG make this pick up from a config variable
-		// TODO
-		$this->disableCaching = false;
+		$this->disableCaching = \Config::get('mainfreight.disableCaching') ?? false;
+
+		$configured =\Config::get('mainfreight.box_sizes');
+		$this->boxes = (!empty($configured) && is_array($configured)) ? $configured : self::DEFAULT_BOXES;
 	}
 
 
@@ -298,14 +281,16 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			return [];
 		}
 
+		$pickup = Config::get('mainfreight.pickup_address') ?: [];
+
 		$args['serviceLevel'] = ['code' => 'LCL'];  // TODO pick this up from the configured type
 		$args['origin'] = [
 			'freightRequiredDateTime' => '2026-06-30T12:00:00:00', // TODO set this up
 			'freightRequiredDateTimeZone' => 'New Zealand Standard Time', // TODO query summer time
 			'address' => [
-				'suburb' => 'Grey Lynn', // TODO make this configurable
-				'postCode' => '1011',
-				'city' => 'Auckland',
+				'suburb' => $pickup['suburb'],
+				'postCode' => $pickup['postcode'],
+				'city' => $pickup['city'],
 				'countryCode' => 'NZ',
 			]
 		];
