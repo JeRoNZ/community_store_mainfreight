@@ -17,6 +17,7 @@ class Mainfreight extends DashboardPageController {
 	public function view() {
 		$this->set('APIKey', Config::get('mainfreight.APIKey'));
 		$this->set('accountID', Config::get('mainfreight.accountID'));
+		$this->set('publicHolidaysAPIKey', Config::get('mainfreight.publicHolidaysAPIKey'));
 		$this->set('boxSizes', Config::get('mainfreight.box_sizes') ?: []);
 		$this->set('pickupAddress', Config::get('mainfreight.pickup_address') ?: []);
 	}
@@ -35,6 +36,7 @@ class Mainfreight extends DashboardPageController {
 			} else {
 				Config::save('mainfreight.APIKey', trim($args['APIKey'] ?? ''));
 				Config::save('mainfreight.accountID', trim($args['accountID'] ?? ''));
+				Config::save('mainfreight.publicHolidaysAPIKey', trim($args['publicHolidaysAPIKey'] ?? ''));
 
 				$boxSizes = [];
 				if (!empty($args['boxes']) && is_array($args['boxes'])) {

@@ -41,6 +41,15 @@ $ui = Core::make('helper/concrete/ui');
                         </div>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <?= $form->label('publicHolidaysAPIKey', t('Public Holidays API Key')); ?>
+                            <?= $form->text('publicHolidaysAPIKey', $publicHolidaysAPIKey) ?>
+                            <small class="form-text text-muted"><a href="https://public-holidays.nz/" target="_blank">public-holidays.nz</a></small>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="tab-pane" id="boxsizes" role="tabpanel">

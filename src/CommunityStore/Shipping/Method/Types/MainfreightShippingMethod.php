@@ -2,23 +2,17 @@
 
 namespace Concrete\Package\CommunityStoreMainfreight\Src\CommunityStore\Shipping\Method\Types;
 
-use Concrete\Core\Cache\Level\ExpensiveCache;
 use Concrete\Core\Entity\Attribute\Value\Value\AddressValue;
 use Concrete\Core\Logging\LoggerAwareInterface;
 use Concrete\Core\Logging\LoggerAwareTrait;
 use Concrete\Core\Logging\LoggerFactory;
-use Concrete\Package\CommunityStore\Src\CommunityStore\Group\Group;
-use Concrete\Package\CommunityStore\Src\CommunityStore\Order\Order;
-use Concrete\Package\CommunityStore\Src\CommunityStore\Product\ProductGroup;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Tax\Tax;
-use Concrete\Package\CommunityStore\Src\CommunityStore\Tax\TaxRate;
 use Doctrine\ORM\Mapping as ORM;
 use Concrete\Core\Support\Facade\Application;
 use Concrete\Core\Support\Facade\DatabaseORM as dbORM;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Cart\Cart;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Product\Product;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Customer\Customer;
-use Concrete\Package\CommunityStore\Src\CommunityStore\Utilities\Calculator;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Shipping\Method\ShippingMethodTypeMethod;
 use Concrete\Package\CommunityStore\Src\CommunityStore\Shipping\Method\ShippingMethodOffer;
 use DVDoug\BoxPacker\Exception\NoBoxesAvailableException;
@@ -26,10 +20,7 @@ use DVDoug\BoxPacker\ItemList;
 use DVDoug\BoxPacker\Packer;
 use DVDoug\BoxPacker\Rotation;
 use DVDoug\BoxPacker\VolumePacker;
-use GuzzleHttp\Client;
 use Concrete\Core\Support\Facade\Config;
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\RequestException;
 use Monolog\Logger;
 use CommunityStoreMainfreight\ConditionalLogger;
 use CommunityStoreMainfreight\Mainfreight;
@@ -71,11 +62,6 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 	 */
 	protected $packageType;
 
-	private const timeOut = 30;
-	private const connectTimeOut = 10;
-
-	private const APIBaseURL = 'https://api.mainfreight.com/transport/1.0/';
-
 	protected $disableCaching;
 
 	private const DEFAULT_BOXES = [
@@ -88,7 +74,10 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 	private $boxes;
 
-	public function __construct () {
+	private function setup () {
+		// This function is necessary because the class is instantiated via the entity manager
+		// which does not run the __construct or on_start methods, or otherwise managed to blat
+		// non-orm field values.
 		$this->disableCaching = \Config::get('mainfreight.disableCaching') ?? false;
 
 		$configured =\Config::get('mainfreight.box_sizes');
@@ -243,7 +232,8 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 	}
 
 	private function getConditionalLogger (): ConditionalLogger {
-		return new ConditionalLogger($this->getLogger(), (bool) $this->debugLogging);
+//		return new ConditionalLogger($this->getLogger(), (bool) $this->debugLogging);
+		return new ConditionalLogger($this->getLogger(), false);
 	}
 
 	public function getOffer ($key) {
@@ -252,6 +242,10 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 
 	public function getOffers () {
+		/***************/
+		$this->setup();
+		/***************/
+
 		$customer = new Customer();
 		$address = $customer->getValue('shipping_address');
 		/* @var $address AddressValue | \stdClass */
@@ -283,7 +277,11 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 		$pickup = Config::get('mainfreight.pickup_address') ?: [];
 
-		$args['serviceLevel'] = ['code' => 'LCL'];  // TODO pick this up from the configured type
+		// TODO figure out how we know which to use?
+		// TODO figure out why some don't exist?
+		// TODO maybe try them all and return multiple offers.
+//		$args['serviceLevel'] = ['code' => $this->serviceTypeB2B];
+		$args['serviceLevel'] = ['code' => $this->serviceTypeDOM];
 		$args['origin'] = [
 			'freightRequiredDateTime' => '2026-06-30T12:00:00:00', // TODO set this up
 			'freightRequiredDateTimeZone' => 'New Zealand Standard Time', // TODO query summer time
