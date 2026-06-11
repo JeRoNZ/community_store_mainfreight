@@ -318,7 +318,7 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			$args['freightDetails'][] =
 				[
 					'units' => "1",
-					'packTypeCode' => "PLT", // TODO pick this up from the configured type
+					'packTypeCode' => $this->getPackageType(),
 					'height' => number_format($box['height'], 2, null, ''),
 					'length' => number_format($box['length'], 2, null, ''),
 					'width' => number_format($box['width'], 2, null, ''),
@@ -338,6 +338,10 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			$this->log(Logger::DEBUG, t('Price cache hit %s %s', var_export($args, true), var_export($rate, true)));
 		} else {
 			$API = new Mainfreight();
+
+			if ($this->debugLogging) {
+				$this->log(Logger::DEBUG, var_export(json_encode($args),true));
+			}
 
 			$rates = $API->getRates($args);
 			/*

@@ -46,6 +46,7 @@ class Controller extends Package {
 	}
 
 	public function install () {
+		$this->registerAutoload();
 		$pkg = parent::install();
 		$this->shippingMethods($pkg);
 		$this->singlePages($pkg);

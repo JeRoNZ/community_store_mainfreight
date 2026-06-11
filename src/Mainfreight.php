@@ -82,11 +82,11 @@ class Mainfreight implements LoggerAwareInterface {
 			return $result;
 
 		} catch (ClientException $e) {
-			$this->logger->emergency('Client Exception: ' . $e->getMessage());
+			$this->logger->emergency(t('Client Exception: %s, Payload: %s', $e->getMessage(), var_export($payload, true)));
 		} catch (RequestException $e) {
-			$this->logger->emergency('Request Exception: ' . $e->getMessage());
+			$this->logger->emergency(t('Request Exception: %s, Payload: %s', $e->getMessage(), var_export($payload, true)));
 		} catch (\Exception $e) {
-			$this->logger->emergency('General Exception: ' . $e->getMessage());
+			$this->logger->emergency(t('General Exception: %s, Payload: %s', $e->getMessage(), var_export($payload, true)));
 		}
 
 		return null;
