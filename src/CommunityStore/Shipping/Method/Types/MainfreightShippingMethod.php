@@ -65,11 +65,11 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 	protected $disableCaching;
 
 	private const DEFAULT_BOXES = [
-		['l' => 1.2, 'w' => 0.15, 'h' => 0.13, 'k' => 20],
-		['l' => 2.4, 'w' => 0.15, 'h' => 0.13, 'k' => 30],
-		['l' => 1.2, 'w' => 0.15, 'h' => 0.19, 'k' => 20],
-		['l' => 2.4, 'w' => 0.15, 'h' => 0.19, 'k' => 30],
-		['l' => 0.35, 'w' => 0.35, 'h' => 0.2,  'k' => 20],
+		['l' => 1.2, 'w' => 0.15, 'h' => 0.13, 'k' => 20, 'ew' => 250, 't' => 5],
+		['l' => 2.4, 'w' => 0.15, 'h' => 0.13, 'k' => 30, 'ew' => 250, 't' => 5],
+		['l' => 1.2, 'w' => 0.15, 'h' => 0.19, 'k' => 20, 'ew' => 250, 't' => 5],
+		['l' => 2.4, 'w' => 0.15, 'h' => 0.19, 'k' => 30, 'ew' => 250, 't' => 5],
+		['l' => 0.35, 'w' => 0.35, 'h' => 0.2,  'k' => 20, 'ew' => 250, 't' => 5],
 	];
 
 	private $boxes;
@@ -78,9 +78,10 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 		// This function is necessary because the class is instantiated via the entity manager
 		// which does not run the __construct or on_start methods, or otherwise managed to blat
 		// non-orm field values.
+		$this->debugLogging = \Config::get('mainfreight.debugLogging') ?? false;
 		$this->disableCaching = \Config::get('mainfreight.disableCaching') ?? false;
 
-		$configured =\Config::get('mainfreight.box_sizes');
+		$configured = \Config::get('mainfreight.box_sizes');
 		$this->boxes = (!empty($configured) && is_array($configured)) ? $configured : self::DEFAULT_BOXES;
 	}
 
@@ -158,7 +159,6 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			$countriesSelected = implode(',', $data['countriesSelected']);
 		}
 		$sm->setCountriesSelected($countriesSelected);
-		$this->setDebugLogging($data['debugLogging'] ? 1 : 0);
 		$sm->setPackageType($data['packageType']);
 		$sm->setServiceTypeDOM($data['serviceTypeDOM']);
 		$sm->setServiceTypeB2B($data['serviceTypeB2B']);
@@ -277,11 +277,14 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 		$pickup = Config::get('mainfreight.pickup_address') ?: [];
 
-		// TODO figure out how we know which to use?
-		// TODO figure out why some don't exist?
+
+
+
+
+
 		// TODO maybe try them all and return multiple offers.
-//		$args['serviceLevel'] = ['code' => $this->serviceTypeB2B];
-		$args['serviceLevel'] = ['code' => $this->serviceTypeDOM];
+
+		$args = [];
 		$args['origin'] = [
 			'freightRequiredDateTime' => '2026-06-30T12:00:00:00', // TODO set this up
 			'freightRequiredDateTimeZone' => 'New Zealand Standard Time', // TODO query summer time
@@ -315,64 +318,6 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 			];
 		}
 
-		$cache = $expensiveCache = null;
-		if (!$this->disableCaching) {
-			$expensiveCache = app('cache/expensive');
-			$cacheName = 'Mainfreight' . md5(json_encode($args));
-			$cache = $expensiveCache->getItem($cacheName);
-		}
-		if ($cache && $cache->isHit()) {
-			$rate = $cache->get();
-			$this->log(Logger::DEBUG, t('Price cache hit %s %s', var_export($args, true), var_export($rate, true)));
-		} else {
-			$API = new Mainfreight();
-			$API->setLogger($this->getConditionalLogger());
-
-			if ($this->debugLogging) {
-				$this->log(Logger::DEBUG, var_export(json_encode($args),true));
-			}
-
-			$rates = $API->getRates($args);
-			/*
-			 * {
-			  "charges" : [ {
-				"name" : "FreightAmount",
-				"value" : 569.49
-			  }, {
-				"name" : "FuelAmount",
-				"value" : 188.79
-			  }, {
-				"name" : "FuelPercentage",
-				"value" : 33.15
-			  }, {
-				"name" : "OtherFeeAmount",
-				"value" : 0.0
-			  }, {
-				"name" : "TotalExcludingGSTAmount",
-				"value" : 758.28
-			  }, {
-				"name" : "TotalIncludingGSTAmount",
-				"value" : 872.02
-			  } ]
-			}
-			 */
-
-			$this->log(Logger::DEBUG, t('Price cache miss %s %s', var_export($args, true), var_export($rates, true)));
-
-			if (!$rates) {
-				return [];
-			}
-
-			$rate = json_decode($rates);
-			if (!$rate) {
-				return [];
-			}
-
-			if ($expensiveCache) {
-				$expensiveCache->save($cache->set($rate)->expiresAfter(3600));
-			}
-		}
-
 		$taxRates = Tax::getTaxRates(true);
 
 		// Do NOT use Tax::getTaxes(), Calculator::getTaxTotals(), Calculator::getTotals() etc, since this results in a recursion,
@@ -389,11 +334,91 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 		}
 
 		$offers = [];
-		foreach ($rate->charges as $charge) {
-			if ($charge->name == $rateKey) {
-				$offer = new ShippingMethodOffer();
-				$offer->setRate($charge->value);
-				$offers[] = $offer;
+
+		//		$args['serviceLevel'] = ['code' => $this->serviceTypeB2B];
+		$args['serviceLevel'] = ['code' => $this->serviceTypeDOM];
+
+		$services = [$this->serviceTypeDOM,$this->serviceTypeB2B];
+
+		foreach($services as $service) {
+			if (! $service) {
+				continue;
+			}
+
+			$args['serviceLevel'] = ['code' => $service];
+			$cache = $expensiveCache = null;
+			if (!$this->disableCaching) {
+				$expensiveCache = app('cache/expensive');
+				$cacheName = 'Mainfreight' . md5(json_encode($args));
+				$cache = $expensiveCache->getItem($cacheName);
+			}
+			if ($cache && $cache->isHit()) {
+				$rate = $cache->get();
+				$this->log(Logger::DEBUG, t('Price cache hit %s %s', var_export($args, true), var_export($rate, true)));
+			} else {
+				$API = new Mainfreight();
+				$API->setLogger($this->getConditionalLogger());
+
+				if ($this->debugLogging) {
+					$this->log(Logger::DEBUG, var_export(json_encode($args),true));
+				}
+
+				$rates = $API->getRates($args);
+				/*
+				 * {
+				  "charges" : [ {
+					"name" : "FreightAmount",
+					"value" : 569.49
+				  }, {
+					"name" : "FuelAmount",
+					"value" : 188.79
+				  }, {
+					"name" : "FuelPercentage",
+					"value" : 33.15
+				  }, {
+					"name" : "OtherFeeAmount",
+					"value" : 0.0
+				  }, {
+					"name" : "TotalExcludingGSTAmount",
+					"value" : 758.28
+				  }, {
+					"name" : "TotalIncludingGSTAmount",
+					"value" : 872.02
+				  } ]
+				}
+				 */
+
+				$this->log(Logger::DEBUG, t('Price cache miss %s %s', var_export($args, true), var_export($rates, true)));
+
+				if (!$rates) {
+					continue;
+				}
+
+				$rate = json_decode($rates);
+				if (!$rate) {
+					continue;
+				}
+
+				if ($expensiveCache) {
+					$expensiveCache->save($cache->set($rate)->expiresAfter(3600));
+				}
+			}
+
+			$showBoxSizes = \Config::get('mainfreight.showBoxSizes') ?? false;
+			foreach ($rate->charges as $charge) {
+				if ($charge->name == $rateKey) {
+					$offer = new ShippingMethodOffer();
+					$offer->setRate($charge->value);
+					$offer->setOfferLabel(t('Mainfreight: %s', $service));
+					if ($showBoxSizes) {
+						$boxText = '';
+						foreach ($boxes as $k => $box) {
+							$boxText .= t('Box %s, %s x %s x %s, %sKg<br>', $k+1, $box['length'], $box['width'], $box['height'], $box['weight']);
+						}
+						$offer->setOfferDetails($boxText);
+					}
+					$offers[] = $offer;
+				}
 			}
 		}
 
@@ -613,15 +638,17 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 	private function henry ($carton, $ix = 0) {
 		//cartons are specified in metres and kg. Packer requires integers. Scale to mm and g.
+		$emptyWeight = (int) ($carton['ew'] ?? 250);
+		$thickness   = (float) ($carton['t'] ?? 10);
 		return new MainfreightBox(
 			reference: t('box %s', $ix),
 			outerWidth: $carton['w'] * 1000,
 			outerLength: $carton['l'] * 1000,
 			outerDepth: $carton['h'] * 1000,
-			emptyWeight: 250,
-			innerWidth: $carton['w'] * 1000 - 5,
-			innerLength: $carton['l'] * 1000 - 5,
-			innerDepth: $carton['h'] * 1000 - 5,
+			emptyWeight: $emptyWeight,
+			innerWidth: $carton['w'] * 1000 - $thickness * 2,
+			innerLength: $carton['l'] * 1000 - $thickness * 2,
+			innerDepth: $carton['h'] * 1000 - $thickness * 2,
 			maxWeight: $carton['k'] * 1000
 		);
 	}

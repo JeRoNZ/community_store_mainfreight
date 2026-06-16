@@ -18,6 +18,9 @@ class Mainfreight extends DashboardPageController {
 		$this->set('APIKey', Config::get('mainfreight.APIKey'));
 		$this->set('accountID', Config::get('mainfreight.accountID'));
 		$this->set('publicHolidaysAPIKey', Config::get('mainfreight.publicHolidaysAPIKey'));
+		$this->set('debugLogging', (bool) Config::get('mainfreight.debugLogging'));
+		$this->set('disableCaching', (bool) Config::get('mainfreight.disableCaching'));
+		$this->set('showBoxSizes', (bool) Config::get('mainfreight.showBoxSizes'));
 		$this->set('boxSizes', Config::get('mainfreight.box_sizes') ?: []);
 		$this->set('pickupAddress', Config::get('mainfreight.pickup_address') ?: []);
 	}
@@ -37,6 +40,9 @@ class Mainfreight extends DashboardPageController {
 				Config::save('mainfreight.APIKey', trim($args['APIKey'] ?? ''));
 				Config::save('mainfreight.accountID', trim($args['accountID'] ?? ''));
 				Config::save('mainfreight.publicHolidaysAPIKey', trim($args['publicHolidaysAPIKey'] ?? ''));
+				Config::save('mainfreight.debugLogging', !empty($args['debugLogging']));
+				Config::save('mainfreight.disableCaching', !empty($args['disableCaching']));
+				Config::save('mainfreight.showBoxSizes', !empty($args['showBoxSizes']));
 
 				$boxSizes = [];
 				if (!empty($args['boxes']) && is_array($args['boxes'])) {
@@ -46,7 +52,9 @@ class Mainfreight extends DashboardPageController {
 						$h = round((float) ($box['h'] ?? 0), 2);
 						$k = round((float) ($box['k'] ?? 0), 2);
 						if ($l > 0 && $w > 0 && $h > 0 && $k > 0) {
-							$boxSizes[] = ['l' => $l, 'w' => $w, 'h' => $h, 'k' => $k];
+							$ew = max(0, (int) ($box['ew'] ?? 250));
+							$t  = max(0, round((float) ($box['t'] ?? 10), 1));
+							$boxSizes[] = ['l' => $l, 'w' => $w, 'h' => $h, 'k' => $k, 'ew' => $ew, 't' => $t];
 						}
 					}
 				}

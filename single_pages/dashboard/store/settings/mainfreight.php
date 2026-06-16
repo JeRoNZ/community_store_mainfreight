@@ -41,12 +41,19 @@ $ui = Core::make('helper/concrete/ui');
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="form-group">
-                            <?= $form->label('publicHolidaysAPIKey', t('Public Holidays API Key')); ?>
-                            <?= $form->text('publicHolidaysAPIKey', $publicHolidaysAPIKey) ?>
-                            <small class="form-text text-muted"><a href="https://public-holidays.nz/" target="_blank">public-holidays.nz</a></small>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="form-check mb-2">
+                            <?= $form->checkbox('debugLogging', 1, $debugLogging, ['id' => 'debugLogging']) ?>
+                            <?= $form->label('debugLogging', t('Enable debug logging')) ?>
+                        </div>
+                        <div class="form-check mb-2">
+                            <?= $form->checkbox('disableCaching', 1, $disableCaching, ['id' => 'disableCaching']) ?>
+                            <?= $form->label('disableCaching', t('Disable rate caching')) ?>
+                        </div>
+                        <div class="form-check mb-2">
+                            <?= $form->checkbox('showBoxSizes', 1, $showBoxSizes, ['id' => 'showBoxSizes']) ?>
+                            <?= $form->label('showBoxSizes', t('Show box sizes on checkout page')) ?>
                         </div>
                     </div>
                 </div>
@@ -65,6 +72,8 @@ $ui = Core::make('helper/concrete/ui');
                             <th><?= t('Width (m)') ?></th>
                             <th><?= t('Height (m)') ?></th>
                             <th><?= t('Max Weight (kg)') ?></th>
+                            <th><?= t('Empty Weight (g)') ?></th>
+                            <th><?= t('Thickness (mm)') ?></th>
                             <th style="width:3rem"></th>
                         </tr>
                     </thead>
@@ -75,11 +84,16 @@ $ui = Core::make('helper/concrete/ui');
                             <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="boxes[<?= $i ?>][w]" value="<?= h(number_format((float)$box['w'], 2)) ?>"></td>
                             <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="boxes[<?= $i ?>][h]" value="<?= h(number_format((float)$box['h'], 2)) ?>"></td>
                             <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="boxes[<?= $i ?>][k]" value="<?= h(number_format((float)$box['k'], 2)) ?>"></td>
+                            <td><input type="number" step="1" min="0" class="form-control form-control-sm" name="boxes[<?= $i ?>][ew]" value="<?= h((int)($box['ew'] ?? 250)) ?>"></td>
+                            <td><input type="number" step="1" min="0" class="form-control form-control-sm" name="boxes[<?= $i ?>][t]" value="<?= h((int)($box['t'] ?? 5)) ?>"></td>
                             <td class="text-center"><button type="button" class="btn btn-sm btn-danger mf-delete-box"><i class="fas fa-times"></i></button></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                <div class="well">
+                    <p>The content width etc., of the box is its width less 2 x the thickness of the box sides. Therefore, for a box to hold a 2.4 metre item, it must have an external width of 2.41 metres, and a thickness of 5mm. The same applies to the width and height.</p>
+                </div>
             </div>
 
             <div class="tab-pane" id="pickupaddress" role="tabpanel">
@@ -134,6 +148,8 @@ $ui = Core::make('helper/concrete/ui');
             '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="boxes[' + idx + '][w]" value=""></td>' +
             '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="boxes[' + idx + '][h]" value=""></td>' +
             '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="boxes[' + idx + '][k]" value=""></td>' +
+            '<td><input type="number" step="1" min="0" class="form-control form-control-sm" name="boxes[' + idx + '][ew]" value="250"></td>' +
+            '<td><input type="number" step="0.1" min="0" class="form-control form-control-sm" name="boxes[' + idx + '][t]" value="10"></td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-danger mf-delete-box"><i class="fas fa-times"></i></button></td>';
         tr.querySelector('.mf-delete-box').addEventListener('click', function () {
             tr.remove();

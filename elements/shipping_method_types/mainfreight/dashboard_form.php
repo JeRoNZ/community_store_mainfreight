@@ -101,11 +101,4 @@ extract($vars);
             </div>
         </div>
     </div>
-
-    <div class="col-sm-2">
-        <div class="form-group">
-            <?= $form->label('debugLogging', t("Debug logging")); ?>
-            <?= $form->select('debugLogging', [0 => t('No'), 1 => t('Yes')], $smtm->getDebugLogging()); ?>
-        </div>
-    </div>
 </div>
