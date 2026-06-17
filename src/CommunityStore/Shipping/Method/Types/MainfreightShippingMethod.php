@@ -62,6 +62,26 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 	 */
 	protected $packageType;
 
+	/**
+	 * @ORM\Column(type="string",nullable=true)
+	 */
+	protected $orderCutoffTime;
+
+	/**
+	 * @ORM\Column(type="string",nullable=true)
+	 */
+	protected $collectionTime;
+
+	/**
+	 * @ORM\Column(type="boolean",nullable=true)
+	 */
+	protected $saturdayEnabled;
+
+	/**
+	 * @ORM\Column(type="boolean",nullable=true)
+	 */
+	protected $sundayEnabled;
+
 	protected $disableCaching;
 
 	private const DEFAULT_BOXES = [
@@ -126,6 +146,38 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 		$this->packageType = $packageType;
 	}
 
+	public function getOrderCutoffTime () {
+		return $this->orderCutoffTime;
+	}
+
+	public function setOrderCutoffTime ($orderCutoffTime): void {
+		$this->orderCutoffTime = $orderCutoffTime;
+	}
+
+	public function getCollectionTime () {
+		return $this->collectionTime;
+	}
+
+	public function setCollectionTime ($collectionTime): void {
+		$this->collectionTime = $collectionTime;
+	}
+
+	public function getSaturdayEnabled () {
+		return $this->saturdayEnabled ? true : false;
+	}
+
+	public function setSaturdayEnabled ($saturdayEnabled): void {
+		$this->saturdayEnabled = $saturdayEnabled ? 1 : 0;
+	}
+
+	public function getSundayEnabled () {
+		return $this->sundayEnabled ? true : false;
+	}
+
+	public function setSundayEnabled ($sundayEnabled): void {
+		$this->sundayEnabled = $sundayEnabled ? 1 : 0;
+	}
+
 
 	public function getLoggerChannel () {
 		return 'mainfreight';
@@ -162,6 +214,10 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 		$sm->setPackageType($data['packageType']);
 		$sm->setServiceTypeDOM($data['serviceTypeDOM']);
 		$sm->setServiceTypeB2B($data['serviceTypeB2B']);
+		$sm->setOrderCutoffTime($data['orderCutoffTime']);
+		$sm->setCollectionTime($data['collectionTime']);
+		$sm->setSaturdayEnabled(!empty($data['saturdayEnabled']));
+		$sm->setSundayEnabled(!empty($data['sundayEnabled']));
 		$em = dbORM::entityManager();
 		$em->persist($sm);
 		$em->flush();
@@ -240,6 +296,43 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 		$this->getOffers()[$key];
 	}
 
+	private function getFreightRequiredDateTime (): \DateTime {
+		$timezone = new \DateTimeZone(Config::get('app.server_timezone') ?: 'Pacific/Auckland');
+		$now = new \DateTime('now', $timezone);
+
+		$cutoffTime = $this->getOrderCutoffTime() ?: '00:00';
+		$collectionTime = $this->getCollectionTime() ?: $cutoffTime;
+
+		$cutoffToday = clone $now;
+		[$cutoffHour, $cutoffMinute] = explode(':', $cutoffTime);
+		$cutoffToday->setTime((int) $cutoffHour, (int) $cutoffMinute, 0);
+
+		$date = clone $now;
+		if ($now > $cutoffToday) {
+			$date->modify('+1 day');
+		}
+
+		while (!$this->isDayAvailable($date)) {
+			$date->modify('+1 day');
+		}
+
+		[$collectionHour, $collectionMinute] = explode(':', $collectionTime);
+		$date->setTime((int) $collectionHour, (int) $collectionMinute, 0);
+
+		return $date;
+	}
+
+	private function isDayAvailable (\DateTime $date): bool {
+		switch ((int) $date->format('N')) {
+			case 6:
+				return $this->getSaturdayEnabled();
+			case 7:
+				return $this->getSundayEnabled();
+			default:
+				return true;
+		}
+	}
+
 
 	public function getOffers () {
 		/***************/
@@ -277,16 +370,9 @@ class MainfreightShippingMethod extends ShippingMethodTypeMethod implements Logg
 
 		$pickup = Config::get('mainfreight.pickup_address') ?: [];
 
-
-
-
-
-
-		// TODO maybe try them all and return multiple offers.
-
 		$args = [];
 		$args['origin'] = [
-			'freightRequiredDateTime' => '2026-06-30T12:00:00:00', // TODO set this up
+			'freightRequiredDateTime' => $this->getFreightRequiredDateTime()->format('Y-m-d\TH:i:s') . ':00',
 			'freightRequiredDateTimeZone' => 'New Zealand Standard Time', // TODO query summer time
 			'address' => [
 				'suburb' => $pickup['suburb'],

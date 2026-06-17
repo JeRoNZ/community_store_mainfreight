@@ -102,3 +102,42 @@ extract($vars);
         </div>
     </div>
 </div>
+<?php
+$timeOptions = [];
+for ($minutes = 0; $minutes < 24 * 60; $minutes += 15) {
+    $time = sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
+    $timeOptions[$time] = $time;
+}
+?>
+<div class="row">
+    <div class="col-sm-3">
+        <div class="form-group">
+            <?= $form->label('orderCutoffTime', t('Order cut off time')); ?>
+            <?= $form->select('orderCutoffTime', $timeOptions, $smtm->getOrderCutoffTime()); ?>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="form-group">
+            <?= $form->label('collectionTime', t('Collection time')); ?>
+            <?= $form->select('collectionTime', $timeOptions, $smtm->getCollectionTime()); ?>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <div class="form-check">
+                <?= $form->checkbox('saturdayEnabled', 1, $smtm->getSaturdayEnabled()); ?>
+                <?= $form->label('saturdayEnabled', t('Collect on Saturdays'), ['class' => 'form-check-label']); ?>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <div class="form-check">
+                <?= $form->checkbox('sundayEnabled', 1, $smtm->getSundayEnabled()); ?>
+                <?= $form->label('sundayEnabled', t('Collect on Sundays'), ['class' => 'form-check-label']); ?>
+            </div>
+        </div>
+    </div>
+</div>
