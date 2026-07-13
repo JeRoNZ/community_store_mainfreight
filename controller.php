@@ -52,6 +52,11 @@ class Controller extends Package {
 			$pm->delete();
 		}
 
+		$pm = StoreShippingMethodType::getByHandle('posthaste');
+		if ($pm) {
+			$pm->delete();
+		}
+
 		parent::uninstall();
 	}
 
@@ -73,6 +78,11 @@ class Controller extends Package {
 		$smt = ShippingMethodType::getByHandle('mainfreight');
 		if (!is_object($smt)) {
 			ShippingMethodType::add('mainfreight', 'Mainfreight', $pkg);
+		}
+
+		$smt = ShippingMethodType::getByHandle('posthaste');
+		if (!is_object($smt)) {
+			ShippingMethodType::add('posthaste', 'Post Haste', $pkg);
 		}
 	}
 

@@ -17,6 +17,7 @@ $ui = Core::make('helper/concrete/ui');
         <?php
         $tabs = [
             ['mainfreight', t('Mainfreight'), true],
+            ['posthaste', t('Post Haste')],
             ['boxsizes', t('Box Sizes')],
             ['pickupaddress', t('Pickup Address')],
         ];
@@ -54,6 +55,77 @@ $ui = Core::make('helper/concrete/ui');
                         <div class="form-check mb-2">
                             <?= $form->checkbox('showBoxSizes', 1, $showBoxSizes, ['id' => 'showBoxSizes']) ?>
                             <?= $form->label('showBoxSizes', t('Show box sizes on checkout page')) ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane" id="posthaste" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <?= $form->label('posthaste_sandbox', t('Active Environment')); ?>
+                            <?= $form->select('posthaste_sandbox', ['0' => t('Live'), '1' => t('Dev')], $postHasteSandboxMode, ['id' => 'ph-mode-select']) ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4" id="ph-live-fields">
+                    <div class="col-md-12">
+                        <h5><?= t('Live Credentials') ?></h5>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <?= $form->label('ph_live_baseUrl', t('Base URL')); ?>
+                            <?= $form->text('ph_live_baseUrl', $postHasteLive['baseUrl'] ?? '') ?>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <?= $form->label('ph_live_accountID', t('Account ID')); ?>
+                            <?= $form->text('ph_live_accountID', $postHasteLive['accountID'] ?? '') ?>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <?= $form->label('ph_live_apiID', t('API ID')); ?>
+                            <?= $form->text('ph_live_apiID', $postHasteLive['apiID'] ?? '') ?>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <?= $form->label('ph_live_secretKey', t('Secret Key')); ?>
+                            <?= $form->text('ph_live_secretKey', $postHasteLive['secretKey'] ?? '') ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row" id="ph-dev-fields">
+                    <div class="col-md-12">
+                        <h5><?= t('Dev Credentials') ?></h5>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <?= $form->label('ph_dev_baseUrl', t('Base URL')); ?>
+                            <?= $form->text('ph_dev_baseUrl', $postHasteDev['baseUrl'] ?? '') ?>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <?= $form->label('ph_dev_accountID', t('Account ID')); ?>
+                            <?= $form->text('ph_dev_accountID', $postHasteDev['accountID'] ?? '') ?>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <?= $form->label('ph_dev_apiID', t('API ID')); ?>
+                            <?= $form->text('ph_dev_apiID', $postHasteDev['apiID'] ?? '') ?>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <?= $form->label('ph_dev_secretKey', t('Secret Key')); ?>
+                            <?= $form->text('ph_dev_secretKey', $postHasteDev['secretKey'] ?? '') ?>
                         </div>
                     </div>
                 </div>
@@ -137,6 +209,21 @@ $ui = Core::make('helper/concrete/ui');
 </div>
 
 <script>
+(function () {
+    var modeSelect = document.getElementById('ph-mode-select');
+    var liveFields = document.getElementById('ph-live-fields');
+    var devFields = document.getElementById('ph-dev-fields');
+
+    function updatePostHasteFields() {
+        var isSandbox = modeSelect.value === '1';
+        devFields.style.display = isSandbox ? '' : 'none';
+        liveFields.style.display = isSandbox ? 'none' : '';
+    }
+
+    modeSelect.addEventListener('change', updatePostHasteFields);
+    updatePostHasteFields();
+})();
+
 (function () {
     var counter = <?= count($boxSizes) ?>;
     var tbody = document.getElementById('mf-boxes-tbody');

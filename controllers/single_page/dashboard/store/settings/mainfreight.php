@@ -23,6 +23,9 @@ class Mainfreight extends DashboardPageController {
 		$this->set('showBoxSizes', (bool) Config::get('mainfreight.showBoxSizes'));
 		$this->set('boxSizes', Config::get('mainfreight.box_sizes') ?: []);
 		$this->set('pickupAddress', Config::get('mainfreight.pickup_address') ?: []);
+		$this->set('postHasteLive', Config::get('posthaste.live') ?: []);
+		$this->set('postHasteDev', Config::get('posthaste.dev') ?: []);
+		$this->set('postHasteSandboxMode', (int) Config::get('posthaste.posthaste_sandbox'));
 	}
 
 	public function save()
@@ -65,6 +68,22 @@ class Mainfreight extends DashboardPageController {
 					'suburb'   => trim($args['suburb'] ?? ''),
 					'city'     => trim($args['city'] ?? ''),
 					'postcode' => trim($args['postcode'] ?? ''),
+				]);
+
+				Config::save('posthaste.posthaste_sandbox', ($args['posthaste_sandbox'] ?? '') === '1' ? 1 : 0);
+
+				Config::save('posthaste.live', [
+					'baseUrl'    => trim($args['ph_live_baseUrl'] ?? ''),
+					'accountID'  => trim($args['ph_live_accountID'] ?? ''),
+					'apiID'      => trim($args['ph_live_apiID'] ?? ''),
+					'secretKey'  => trim($args['ph_live_secretKey'] ?? ''),
+				]);
+
+				Config::save('posthaste.dev', [
+					'baseUrl'    => trim($args['ph_dev_baseUrl'] ?? ''),
+					'accountID'  => trim($args['ph_dev_accountID'] ?? ''),
+					'apiID'      => trim($args['ph_dev_apiID'] ?? ''),
+					'secretKey'  => trim($args['ph_dev_secretKey'] ?? ''),
 				]);
 
 				$this->flash('success', t('Settings Saved'));
